@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     Copyright (c) 2016 Akop Karapetyan
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,23 +19,22 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 -->
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000"
     android:orientation="vertical">
+
     <org.akop.ararat.view.CrosswordView
         android:id="@+id/crossword"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
-    <TextView
-        android:id="@+id/hint"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minLines="3"
-        android:maxLines="3"
-        android:textColor="#fff"
-        android:background="#000"/>
+        android:layout_weight="1"
+        android:background="@android:color/white"
+        app:answerTextColor="@android:color/white"
+        app:cellStrokeColor="@android:color/white"
+        app:defaultCellFillColor="#FFF3D8"
+        app:selectedCellFillColor="#FFB73F"
+        app:selectedWordFillColor="#FFB73F" />
 </LinearLayout>

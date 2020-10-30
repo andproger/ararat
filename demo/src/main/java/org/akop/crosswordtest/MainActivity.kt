@@ -30,13 +30,17 @@ import android.widget.Toast
 
 import org.akop.ararat.core.Crossword
 import org.akop.ararat.core.buildCrossword
+import org.akop.ararat.core.buildWord
 import org.akop.ararat.io.PuzFormatter
 import org.akop.ararat.view.CrosswordView
 
 
 // Crossword: Double-A's by Ben Tausig
 // http://www.inkwellxwords.com/iwxpuzzles.html
-class MainActivity : AppCompatActivity(), CrosswordView.OnLongPressListener, CrosswordView.OnStateChangeListener, CrosswordView.OnSelectionChangeListener {
+class MainActivity : AppCompatActivity(),
+        CrosswordView.OnLongPressListener,
+        CrosswordView.OnStateChangeListener,
+        CrosswordView.OnSelectionChangeListener {
 
     private var crosswordView: CrosswordView? = null
     private var hint: TextView? = null
@@ -47,15 +51,56 @@ class MainActivity : AppCompatActivity(), CrosswordView.OnLongPressListener, Cro
         setContentView(R.layout.activity_main)
 
         crosswordView = findViewById(R.id.crossword)
-        hint = findViewById(R.id.hint)
+
+        //hint = findViewById(R.id.hint)
 
         val crossword = readPuzzle(R.raw.puzzle)
-
-        title = getString(R.string.title_by_author,
-                crossword.title, crossword.author)
+        val customCrossword = buildCrossword {
+            height = 8
+            width = 10
+            words.addAll(
+                    listOf(
+                            buildWord {
+                                direction = Crossword.Word.DIR_ACROSS
+                                number = 1
+                                startRow = 0
+                                startColumn = 0
+                                "dog".toCharArray().forEach { addCell(it) }
+                            },
+                            buildWord {
+                                direction = Crossword.Word.DIR_DOWN
+                                number = 2
+                                startRow = 0
+                                startColumn = 2
+                                "glade".toCharArray().forEach { addCell(it) }
+                            },
+                            buildWord {
+                                direction = Crossword.Word.DIR_ACROSS
+                                number = 3
+                                startRow = 2
+                                startColumn = 2
+                                "age".toCharArray().forEach { addCell(it) }
+                            },
+                            buildWord {
+                                direction = Crossword.Word.DIR_ACROSS
+                                number = 4
+                                startRow = 4
+                                startColumn = 2
+                                "elephant".toCharArray().forEach { addCell(it) }
+                            },
+                            buildWord {
+                                direction = Crossword.Word.DIR_DOWN
+                                number = 5
+                                startRow = 1
+                                startColumn = 4
+                                "celery".toCharArray().forEach { addCell(it) }
+                            }
+                    )
+            )
+        }
 
         crosswordView!!.let { cv ->
-            cv.crossword = crossword
+            cv.crossword = customCrossword
             cv.onLongPressListener = this
             cv.onStateChangeListener = this
             cv.onSelectionChangeListener = this
@@ -121,7 +166,7 @@ class MainActivity : AppCompatActivity(), CrosswordView.OnLongPressListener, Cro
                 Toast.LENGTH_SHORT).show()
     }
 
-    override fun onCrosswordUnsolved(view: CrosswordView) { }
+    override fun onCrosswordUnsolved(view: CrosswordView) {}
 
     private fun readPuzzle(@RawRes resourceId: Int): Crossword =
             resources.openRawResource(resourceId).use { s ->
@@ -130,10 +175,10 @@ class MainActivity : AppCompatActivity(), CrosswordView.OnLongPressListener, Cro
 
     override fun onSelectionChanged(view: CrosswordView,
                                     word: Crossword.Word?, position: Int) {
-        hint!!.text = when (word?.direction) {
+        /*hint!!.text = when (word?.direction) {
             Crossword.Word.DIR_ACROSS -> getString(R.string.across, word.number, word.hint)
             Crossword.Word.DIR_DOWN -> getString(R.string.down, word.number, word.hint)
             else -> ""
-        }
+        }*/
     }
 }
