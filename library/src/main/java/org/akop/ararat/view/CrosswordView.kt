@@ -84,6 +84,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     private var scaledCellSize = 0f
 
     private val cellStrokePaint = Paint()
+    private val selectedCellStrokePaint = Paint()
     private val circleStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val cellFillPaint = Paint()
     private val cheatedCellFillPaint = Paint()
@@ -142,13 +143,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     private val rendererLock = Any()
     private val inPlaceRenderer by lazy {
-        Renderer(
-                this,
-                renderNumberEnabled,
-                roundedRectEnabled,
-                roundedRectTop,
-                roundedRectRight
-        )
+        Renderer(this)
     }
 
     private val inputEventListener = object : CrosswordInputConnection.OnInputEventListener {
@@ -238,12 +233,18 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     var roundedRectEnabled = false
     var roundedRectTop: Float? = null
     var roundedRectRight: Float? = null
+    var cellPadding = 0f
 
     var strokeWidth: Float? = null
         set(value) {
             field = value
-            cellFillPaint.style = if (value != null) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
             value?.let(cellStrokePaint::setStrokeWidth)
+        }
+
+    var selectedStrokeWidth: Float? = null
+        set(value) {
+            field = value
+            value?.let(selectedCellStrokePaint::setStrokeWidth)
         }
 
     var selectedWord: Crossword.Word?
@@ -352,6 +353,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         var mistakeCellFillColor = MISTAKE_CELL_FILL_COLOR
         var selectedWordFillColor = SELECTED_WORD_FILL_COLOR
         var selectedCellFillColor = SELECTED_CELL_FILL_COLOR
+        var selectedCellStrokeColor = CELL_STROKE_COLOR
         var markedCellFillColor = MARKED_CELL_FILL_COLOR
         var numberTextColor = NUMBER_TEXT_COLOR
         var cellStrokeColor = CELL_STROKE_COLOR
@@ -377,6 +379,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             mistakeCellFillColor = getColor(R.styleable.CrosswordView_mistakeCellFillColor, mistakeCellFillColor)
             selectedWordFillColor = getColor(R.styleable.CrosswordView_selectedWordFillColor, selectedWordFillColor)
             selectedCellFillColor = getColor(R.styleable.CrosswordView_selectedCellFillColor, selectedCellFillColor)
+            selectedCellStrokeColor = getColor(R.styleable.CrosswordView_selectedCellStrokeColor, selectedCellStrokeColor)
             markedCellFillColor = getColor(R.styleable.CrosswordView_markedCellFillColor, markedCellFillColor)
             cellStrokeColor = getColor(R.styleable.CrosswordView_cellStrokeColor, cellStrokeColor)
             circleStrokeColor = getColor(R.styleable.CrosswordView_circleStrokeColor, circleStrokeColor)
@@ -392,7 +395,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         // Init paints
         cellFillPaint.color = cellFillColor
-        cellFillPaint.style = if (strokeWidth != null) Paint.Style.FILL_AND_STROKE else Paint.Style.FILL
+        cellFillPaint.style = Paint.Style.FILL
 
         cheatedCellFillPaint.color = cheatedCellFillColor
         cheatedCellFillPaint.style = Paint.Style.FILL
@@ -411,9 +414,14 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         cellStrokePaint.color = cellStrokeColor
         cellStrokePaint.style = Paint.Style.STROKE
-
         strokeWidth?.let { strokeWidth ->
             cellStrokePaint.strokeWidth = strokeWidth
+        }
+
+        selectedCellStrokePaint.color = selectedCellStrokeColor
+        selectedCellStrokePaint.style = Paint.Style.STROKE
+        selectedStrokeWidth?.let { width ->
+            selectedCellStrokePaint.strokeWidth = width
         }
 
         circleStrokePaint.color = circleStrokeColor
@@ -1177,7 +1185,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         val regenBitmaps = puzzleBitmap == null && (renderTask == null || renderTask!!.isCancelled)
 
         // Determine the scale at which the puzzle takes up the entire width
-        val unscaledWidth = puzzleWidth * cellSize + 1 // +1px for stroke brush
+        val unscaledWidth = puzzleWidth * (cellSize + cellPadding) + 1 + cellPadding// +1px for stroke brush
         fitWidthScaleFactor = contentRect.width() / unscaledWidth
 
         // Set the default scale to be "fit to width"
@@ -1189,13 +1197,13 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         minScaleFactor = if (contentRect.width() < contentRect.height()) {
             fitWidthScaleFactor
         } else {
-            contentRect.height() / (puzzleHeight * cellSize + 1) // +1px for stroke brush
+            contentRect.height() / (puzzleHeight * (cellSize + cellPadding) + 1 + cellPadding) // +1px for stroke brush
         }
 
         val largestDimension = maxOf(puzzleWidth, puzzleHeight)
         val maxAvailableDimension = (_maxBitmapSize - 1).toFloat() // stroke brush again
 
-        maxScaleFactor = maxAvailableDimension / (largestDimension * cellSize)
+        maxScaleFactor = maxAvailableDimension / (largestDimension * (cellSize + cellPadding))
         maxScaleFactor = maxOf(maxScaleFactor, minScaleFactor)
 
         bitmapScale = 1.0f
@@ -1219,11 +1227,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                 renderTask = RenderTask(
                         this,
                         renderScale,
-                        backgroundColor,
-                        renderNumberEnabled,
-                        roundedRectEnabled,
-                        roundedRectTop,
-                        roundedRectRight
+                        backgroundColor
                 )
                 renderTask!!.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR)
             }
@@ -1232,7 +1236,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     private fun recomputePuzzleRect() {
         // Compute scaled puzzle rect
-        scaledCellSize = renderScale * cellSize
+        scaledCellSize = renderScale * (cellSize + cellPadding)
         puzzleRect.set(0f, 0f,
                 puzzleWidth * scaledCellSize + 1, // w/h get an extra pixel due to the
                 puzzleHeight * scaledCellSize + 1) // hairline-wide stroke of the cell
@@ -1707,13 +1711,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
     }
 
-    private class Renderer(
-            private val v: CrosswordView,
-            private val renderNumberEnabled: Boolean,
-            private val roundedRectEnabled: Boolean,
-            private val roundedRectTop: Float? = 4f,
-            private val roundedRectRight: Float? = 4f
-    ) {
+    private class Renderer(private val v: CrosswordView) {
 
         var cancelRender: Boolean = false
 
@@ -1722,11 +1720,17 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         private val tempRect = Rect()
         private val answerTextRect = RectF()
 
-        fun renderCell(v: CrosswordView, canvas: Canvas,
-                       cell: Cell, fillPaint: Paint, fastRender: Boolean) {
+        fun renderCell(
+                v: CrosswordView,
+                canvas: Canvas,
+                cell: Cell,
+                fillPaint: Paint,
+                cellStrokePaint: Paint?,
+                fastRender: Boolean
+        ) {
 
-            if (roundedRectEnabled) {
-                canvas.drawRoundRect(cellRect, roundedRectTop!!, roundedRectRight!!, fillPaint)
+            if (v.roundedRectEnabled) {
+                canvas.drawRoundRect(cellRect, v.roundedRectTop!!, v.roundedRectRight!!, fillPaint)
             } else {
                 canvas.drawRect(cellRect, fillPaint)
             }
@@ -1758,10 +1762,12 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                 }
             }
 
-            if (roundedRectEnabled) {
-                canvas.drawRoundRect(cellRect, roundedRectTop!!, roundedRectRight!!, v.cellStrokePaint)
-            } else {
-                canvas.drawRect(cellRect, v.cellStrokePaint)
+            cellStrokePaint?.let {
+                if (v.roundedRectEnabled) {
+                    canvas.drawRoundRect(cellRect, v.roundedRectTop!!, v.roundedRectRight!!, cellStrokePaint)
+                } else {
+                    canvas.drawRect(cellRect, cellStrokePaint)
+                }
             }
 
             if (fastRender) return
@@ -1771,7 +1777,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                         v.circleRadius, v.circleStrokePaint)
             }
 
-            if (renderNumberEnabled) {
+            if (v.renderNumberEnabled) {
                 val numberY = cellRect.top + v.numberTextPadding + v.numberTextHeight
 
                 cell.number?.let { num ->
@@ -1794,7 +1800,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     text = text.substring(0, 8) + "…"
                 }
 
-                val top = if (renderNumberEnabled) {
+                val top = if (v.renderNumberEnabled) {
                     cellRect.top + v.numberTextPadding + v.numberTextHeight
                 } else {
                     cellRect.top
@@ -1829,10 +1835,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             canvas.save()
             canvas.scale(v.renderScale, v.renderScale)
 
-            var top = sel.startRow * v.cellSize
+            var top = sel.startRow * (v.cellSize + v.cellPadding) + v.cellPadding / 2
             var index = 0
             for (row in sel.startRow..sel.endRow) {
-                var left = sel.startColumn * v.cellSize
+                var left = sel.startColumn * (v.cellSize + v.cellPadding) + v.cellPadding / 2
                 for (column in sel.startColumn..sel.endColumn) {
                     if (cancelRender) {
                         canvas.restore()
@@ -1841,20 +1847,20 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
                     v.puzzleCells[row][column]?.let { cell ->
                         // Draw the unselected cell
-                        val paint = when {
-                            clearSelection -> v.cellFillPaint
-                            index == sel.cell -> v.selectedCellFillPaint
-                            else -> v.selectedWordFillPaint
+                        val (paint, strokePaint) = when {
+                            clearSelection -> v.cellFillPaint to v.strokeWidth?.let { v.cellStrokePaint }
+                            index == sel.cell -> v.selectedCellFillPaint to v.selectedStrokeWidth?.let { v.selectedCellStrokePaint }
+                            else -> v.selectedWordFillPaint to v.strokeWidth?.let { v.cellStrokePaint }
                         }
 
                         cellRect.set(left, top, left + v.cellSize, top + v.cellSize)
-                        renderCell(v, canvas, cell, paint, false)
+                        renderCell(v, canvas, cell, paint, strokePaint, false)
                     }
 
                     index++
-                    left += v.cellSize
+                    left += v.cellSize + v.cellPadding
                 }
-                top += v.cellSize
+                top += v.cellSize + v.cellPadding
             }
 
             canvas.restore()
@@ -1867,9 +1873,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             canvas.save()
             canvas.scale(scale, scale)
 
-            var top = 0f
+            var top = 0f + v.cellPadding / 2
             for (i in 0 until v.puzzleHeight) {
-                var left = 0f
+                var left = 0f + v.cellPadding / 2
                 for (j in 0 until v.puzzleWidth) {
                     if (cancelRender) {
                         canvas.restore()
@@ -1878,11 +1884,18 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
                     v.puzzleCells[i][j]?.let { cell ->
                         cellRect.set(left, top, left + v.cellSize, top + v.cellSize)
-                        renderCell(v, canvas, cell, v.cellFillPaint, fastRender)
+                        renderCell(
+                                v,
+                                canvas,
+                                cell,
+                                v.cellFillPaint,
+                                v.strokeWidth?.let { v.cellStrokePaint },
+                                fastRender
+                        )
                     }
-                    left += v.cellSize
+                    left += v.cellSize + v.cellPadding
                 }
-                top += v.cellSize
+                top += v.cellSize + v.cellPadding
             }
 
             canvas.restore()
@@ -1897,21 +1910,11 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     private class RenderTask(
             view: CrosswordView,
             var scale: Float,
-            val backgroundColor: Int?,
-            val renderNumberEnabled: Boolean,
-            val roundedRectEnabled: Boolean,
-            val roundedRectTop: Float?,
-            val roundedRectRight: Float?
+            val backgroundColor: Int?
     ) : AsyncTask<Void?, Void?, Bitmap?>() {
 
         private val viewRef = WeakReference(view)
-        private val renderer = Renderer(
-                view,
-                renderNumberEnabled,
-                roundedRectEnabled,
-                roundedRectTop,
-                roundedRectRight
-        )
+        private val renderer = Renderer(view)
 
         override fun doInBackground(vararg params: Void?): Bitmap? {
             val v = viewRef.get() ?: return null

@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
     Copyright (c) 2014-2016 Akop Karapetyan
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,13 +29,14 @@
         <attr name="selectedCellFillColor" format="color" />
         <attr name="markedCellFillColor" format="color" />
         <attr name="cellStrokeColor" format="color" />
+        <attr name="selectedCellStrokeColor" format="color" />
         <attr name="circleStrokeColor" format="color" />
         <attr name="numberTextPadding" format="dimension" />
         <attr name="numberTextSize" format="dimension" />
         <attr name="answerTextPadding" format="dimension" />
-		<attr name="answerTextSize" format="dimension" />
-		<attr name="answerTextColor" format="color" />
-		<attr name="numberTextColor" format="color" />
+        <attr name="answerTextSize" format="dimension" />
+        <attr name="answerTextColor" format="color" />
+        <attr name="numberTextColor" format="color" />
         <attr name="editable" format="boolean" />
         <attr name="skipOccupiedOnType" format="boolean" />
         <attr name="selectFirstUnoccupiedOnNav" format="boolean" />
