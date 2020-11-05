@@ -792,6 +792,13 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         return true
     }
 
+    fun isAllCellsNotEmpty(): Boolean {
+        val cw = crossword ?: return false
+        if (cw.flags and Crossword.FLAG_NO_SOLUTION != 0) return false
+
+        return puzzleCells.all { it.all { !(it?.isEmpty ?: false) } }
+    }
+
     // Returns previous incomplete word.
     // If all words have been completed, returns previous word - irrelevant of
     // completion status.
