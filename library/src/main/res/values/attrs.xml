@@ -23,6 +23,7 @@
     <declare-styleable name="CrosswordView">
         <attr name="cellSize" format="dimension" />
         <attr name="defaultCellFillColor" format="color" />
+        <attr name="notEmptyCellFillColor" format="color" />
         <attr name="cheatedCellFillColor" format="color" />
         <attr name="mistakeCellFillColor" format="color" />
         <attr name="selectedWordFillColor" format="color" />

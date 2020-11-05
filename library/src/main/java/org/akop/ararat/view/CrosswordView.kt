@@ -87,6 +87,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     private val selectedCellStrokePaint = Paint()
     private val circleStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val cellFillPaint = Paint()
+    private val notEmptyCellFillPaint = Paint()
     private val cheatedCellFillPaint = Paint()
     private val mistakeCellFillPaint = Paint()
     private val markedCellFillPaint = Paint()
@@ -234,6 +235,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     var roundedRectTop: Float? = null
     var roundedRectRight: Float? = null
     var cellPadding = 0f
+    var markedFillFullCellEnabled = false
+    var customMarkerForCorrectChecked = false
+    var clearFlagsOnEditCell = false
 
     var strokeWidth: Float? = null
         set(value) {
@@ -349,6 +353,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         val dm = r.displayMetrics
 
         var cellFillColor = NORMAL_CELL_FILL_COLOR
+        var notEmptyCellFillColor = NORMAL_CELL_FILL_COLOR
         var cheatedCellFillColor = CHEATED_CELL_FILL_COLOR
         var mistakeCellFillColor = MISTAKE_CELL_FILL_COLOR
         var selectedWordFillColor = SELECTED_WORD_FILL_COLOR
@@ -375,6 +380,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             answerTextSize = getDimension(R.styleable.CrosswordView_answerTextSize, answerTextSize)
             answerTextColor = getColor(R.styleable.CrosswordView_answerTextColor, answerTextColor)
             cellFillColor = getColor(R.styleable.CrosswordView_defaultCellFillColor, cellFillColor)
+            notEmptyCellFillColor = getColor(R.styleable.CrosswordView_notEmptyCellFillColor, notEmptyCellFillColor)
             cheatedCellFillColor = getColor(R.styleable.CrosswordView_cheatedCellFillColor, cheatedCellFillColor)
             mistakeCellFillColor = getColor(R.styleable.CrosswordView_mistakeCellFillColor, mistakeCellFillColor)
             selectedWordFillColor = getColor(R.styleable.CrosswordView_selectedWordFillColor, selectedWordFillColor)
@@ -396,6 +402,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         // Init paints
         cellFillPaint.color = cellFillColor
         cellFillPaint.style = Paint.Style.FILL
+
+        notEmptyCellFillPaint.color = notEmptyCellFillColor
+        notEmptyCellFillPaint.style = Paint.Style.FILL
 
         cheatedCellFillPaint.color = cheatedCellFillColor
         cheatedCellFillPaint.style = Paint.Style.FILL
@@ -651,7 +660,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         setChars(row, column, arrayOf(arrayOf<String?>(ch)), true)
     }
 
-    fun solveCrossword() {
+    fun solveCrossword(showAnswers: Boolean = true) {
         val matrix = Array<Array<String?>>(puzzleHeight) { arrayOfNulls(puzzleWidth) }
         for (word in crossword!!.wordsAcross) {
             val row = word.startRow
@@ -674,7 +683,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             }
         }
 
-        setChars(0, 0, matrix, true)
+        setChars(0, 0, matrix, true, showAnswers)
     }
 
     fun reset() {
@@ -881,6 +890,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             if (changed) {
                 undoBuffer.push(UndoItem(cell.char, row, col, selection))
                 cell.setChar(sch)
+                if (clearFlagsOnEditCell) {
+                    cell.flags = 0
+                }
             }
 
             if (markerDisplayMode and MARKER_ERROR != 0) {
@@ -963,6 +975,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         if (markerDisplayMode and MARKER_ERROR != 0) {
             puzzleCells[row][col]!!.setFlag(Cell.FLAG_ERROR, false)
         }
+        if (clearFlagsOnEditCell) {
+            puzzleCells[row][col]!!.flags = 0
+        }
 
         selectedWord?.let { resetSelection(Selectable(it, selectedCell)) }
         if (changed) onBoardChanged()
@@ -999,8 +1014,14 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
     }
 
-    private fun setChars(startRow: Int, startColumn: Int, charMatrix: Array<Array<String?>>,
-                         setCheatFlag: Boolean, bypassUndoBuffer: Boolean = false) {
+    private fun setChars(
+            startRow: Int,
+            startColumn: Int,
+            charMatrix: Array<Array<String?>>,
+            setCheatFlag: Boolean,
+            showAnswers: Boolean = true,
+            bypassUndoBuffer: Boolean = false
+    ) {
         // Check startRow/startColumn
         require(startRow >= 0 && startColumn >= 0) { "Invalid startRow/startColumn" }
 
@@ -1040,7 +1061,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     if (ch != vwCell.char && (ch == null || validator.invoke(ch))) {
                         val cellChanged = vwCell.char != ch
                         if (cellChanged) {
-                            vwCell.setChar(ch)
+                            if (showAnswers) vwCell.setChar(ch)
                             cwChanged = true
                         }
                         if (setCheatFlag) {
@@ -1048,6 +1069,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                         }
                         if (markerDisplayMode and MARKER_ERROR != 0) {
                             vwCell.markError(map[i][j]!!, revealSetsCheatFlag)
+                        }
+                    } else {
+                        if (customMarkerForCorrectChecked) {
+                            vwCell.setFlag(Cell.FLAG_MARKED, true)
                         }
                     }
                 }
@@ -1645,7 +1670,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         fun reset() {
             clearChar()
-            setFlag(FLAG_CHEATED or FLAG_ERROR, false)
+            setFlag(FLAG_CHEATED or FLAG_ERROR or FLAG_MARKED, false)
         }
 
         fun setChar(ch: String?): Boolean {
@@ -1728,16 +1753,28 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                 cellStrokePaint: Paint?,
                 fastRender: Boolean
         ) {
+            val markedCustom = cell.isFlagSet(Cell.FLAG_MARKED) && (v.markerDisplayMode and MARKER_CUSTOM != 0 || v.customMarkerForCorrectChecked)
+            val markedCheated = cell.isFlagSet(Cell.FLAG_CHEATED) && v.markerDisplayMode and MARKER_CHEAT != 0
+            val markedError = cell.isFlagSet(Cell.FLAG_ERROR) && v.markerDisplayMode and MARKER_ERROR != 0
+
+            val fillPaintOrMarkedFillPaint = if (v.markedFillFullCellEnabled) {
+                when {
+                    markedCustom -> v.markedCellFillPaint
+                    markedCheated -> v.cheatedCellFillPaint
+                    markedError -> v.mistakeCellFillPaint
+                    else -> fillPaint
+                }
+            } else fillPaint
 
             if (v.roundedRectEnabled) {
-                canvas.drawRoundRect(cellRect, v.roundedRectTop!!, v.roundedRectRight!!, fillPaint)
+                canvas.drawRoundRect(cellRect, v.roundedRectTop!!, v.roundedRectRight!!, fillPaintOrMarkedFillPaint)
             } else {
-                canvas.drawRect(cellRect, fillPaint)
+                canvas.drawRect(cellRect, fillPaintOrMarkedFillPaint)
             }
 
-            if (!fastRender) {
+            if (!fastRender && !v.markedFillFullCellEnabled) {
                 // Render the markers first, so that the cell stroke paints over
-                if (cell.isFlagSet(Cell.FLAG_MARKED) && v.markerDisplayMode and MARKER_CUSTOM != 0) {
+                if (markedCustom) {
                     canvas.drawPath(cellPath.with(true) {
                         moveTo(cellRect.right - v.markerSideLength, cellRect.top)
                         lineTo(cellRect.right, cellRect.top)
@@ -1745,7 +1782,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     }, v.markedCellFillPaint)
                 }
 
-                if (cell.isFlagSet(Cell.FLAG_CHEATED) && v.markerDisplayMode and MARKER_CHEAT != 0) {
+                if (markedCheated) {
                     canvas.drawPath(cellPath.with(true) {
                         moveTo(cellRect.right, cellRect.bottom)
                         lineTo(cellRect.right - v.markerSideLength, cellRect.bottom)
@@ -1753,7 +1790,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     }, v.cheatedCellFillPaint)
                 }
 
-                if (cell.isFlagSet(Cell.FLAG_ERROR) && v.markerDisplayMode and MARKER_ERROR != 0) {
+                if (markedError) {
                     canvas.drawPath(cellPath.with(true) {
                         moveTo(cellRect.left, cellRect.bottom)
                         lineTo(cellRect.left + v.markerSideLength, cellRect.bottom)
@@ -1847,8 +1884,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
                     v.puzzleCells[row][column]?.let { cell ->
                         // Draw the unselected cell
+                        val fillPaint = if (cell.isEmpty) v.cellFillPaint else v.notEmptyCellFillPaint
+
                         val (paint, strokePaint) = when {
-                            clearSelection -> v.cellFillPaint to v.strokeWidth?.let { v.cellStrokePaint }
+                            clearSelection -> fillPaint to v.strokeWidth?.let { v.cellStrokePaint }
                             index == sel.cell -> v.selectedCellFillPaint to v.selectedStrokeWidth?.let { v.selectedCellStrokePaint }
                             else -> v.selectedWordFillPaint to v.strokeWidth?.let { v.cellStrokePaint }
                         }
@@ -1884,11 +1923,14 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
                     v.puzzleCells[i][j]?.let { cell ->
                         cellRect.set(left, top, left + v.cellSize, top + v.cellSize)
+
+                        val fillPaint = if (cell.isEmpty) v.cellFillPaint else v.notEmptyCellFillPaint
+
                         renderCell(
                                 v,
                                 canvas,
                                 cell,
-                                v.cellFillPaint,
+                                fillPaint,
                                 v.strokeWidth?.let { v.cellStrokePaint },
                                 fastRender
                         )
