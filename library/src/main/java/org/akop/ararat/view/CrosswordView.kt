@@ -799,6 +799,19 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         return puzzleCells.all { it.all { !(it?.isEmpty ?: false) } }
     }
 
+    fun hasMarkedCheated(): Boolean {
+        val cw = crossword ?: return false
+        if (cw.flags and Crossword.FLAG_NO_SOLUTION != 0) return false
+
+        return puzzleCells.any {
+            it.any { cell ->
+                cell?.let {
+                    cell.isFlagSet(Cell.FLAG_CHEATED) && markerDisplayMode and MARKER_CHEAT != 0
+                } ?: false
+            }
+        }
+    }
+
     // Returns previous incomplete word.
     // If all words have been completed, returns previous word - irrelevant of
     // completion status.
