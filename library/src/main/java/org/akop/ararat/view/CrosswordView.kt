@@ -238,6 +238,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     var markedFillFullCellEnabled = false
     var customMarkerForCorrectChecked = false
     var clearFlagsOnEditCell = false
+    var autoOpenKeyboard = false
 
     var strokeWidth: Float? = null
         set(value) {
@@ -339,6 +340,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
             initializeCrossword()
             selectNextWord()
+            if (autoOpenKeyboard) showKeyboard()
 
             renderScale = 0f
             resetConstraintsAndRedraw(true)
