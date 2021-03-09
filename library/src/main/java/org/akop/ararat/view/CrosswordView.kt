@@ -794,6 +794,31 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         return true
     }
 
+    fun isWordSolved(word: Crossword.Word): Boolean {
+        val cw = crossword ?: return false
+        if (cw.flags and Crossword.FLAG_NO_SOLUTION != 0) return false
+
+        val map = cw.cellMap
+        when (word.direction) {
+            Crossword.Word.DIR_ACROSS -> {
+                for (col in word.startColumn until word.startColumn + word.length) {
+                    puzzleCells[word.startRow][col]?.let { cell ->
+                        if (!cell.isSolved(map[word.startRow][col]!!)) return false
+                    }
+                }
+            }
+            Crossword.Word.DIR_DOWN -> {
+                for (row in word.startRow until word.startRow + word.length) {
+                    puzzleCells[row][word.startColumn]?.let { cell ->
+                        if (!cell.isSolved(map[row][word.startColumn]!!)) return false
+                    }
+                }
+            }
+        }
+
+        return true
+    }
+
     fun isAllCellsNotEmpty(): Boolean {
         val cw = crossword ?: return false
         if (cw.flags and Crossword.FLAG_NO_SOLUTION != 0) return false
@@ -839,8 +864,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     // Returns next incomplete word.
     // If all words have been completed, returns next word - irrelevant of
     // completion status.
-    private fun nextIncomplete(word: Crossword.Word?): Crossword.Word? {
-        val firstNext = crossword?.nextWord(word)
+    private fun nextIncomplete(word: Crossword.Word?, predicate: ((Crossword.Word) -> Boolean)? = null): Crossword.Word? {
+        val firstNext = predicate?.let { crossword?.nextWord(word, it) }
+                ?: crossword?.nextWord(word)
+
         var w = firstNext
 
         wordLoop@ while (w != null) {
@@ -863,7 +890,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             resetSelection(null)
         } else {
             resetSelection(Selectable(word,
-                    if (selectFirstUnoccupiedOnNav) maxOf(firstFreeCell(word, 0), 0) else 0))
+                    if (selectFirstUnoccupiedOnNav) maxOf(firstCell(word, 0), 0) else 0))
         }
     }
 
@@ -921,30 +948,61 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                 cell.markError(crossword!!.cellMap[row][col]!!, revealSetsCheatFlag)
             }
 
-            resetSelection(nextSelectable(selection!!))
+            var nextSelectable = nextSelectable(selection!!) { !isWordSolved(it) }
+
+            selectedWord?.also { word ->
+                if (isWordSolved(word)) {
+                    solveWord(word)
+                    (if (skipCompletedWords) nextIncomplete(word) { !isWordSolved(it) } else crossword!!.nextWord(word))?.let { nextWord ->
+                        nextSelectable = Selectable(nextWord, if (selectFirstUnoccupiedOnNav) maxOf(firstCell(nextWord, 0), 0) else 0)
+                    }
+                } else {
+                    when (selection!!.direction) {
+                        Crossword.Word.DIR_ACROSS -> if (cell.downWordNumber != Cell.WORD_NUMBER_NONE) {
+                            crossword?.findWord(Crossword.Word.DIR_DOWN, cell.downWordNumber)?.let { otherWord ->
+                                if (isWordSolved(otherWord)) {
+                                    solveWord(otherWord)
+                                }
+                            }
+                        }
+                        Crossword.Word.DIR_DOWN -> if (cell.acrossWordNumber != Cell.WORD_NUMBER_NONE) {
+                            crossword?.findWord(Crossword.Word.DIR_ACROSS, cell.acrossWordNumber)?.let { otherWord ->
+                                if (isWordSolved(otherWord)) {
+                                    solveWord(otherWord)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            resetSelection(nextSelectable)
+
             if (changed) onBoardChanged()
         }
     }
 
-    private fun nextSelectable(selected: Selectable): Selectable {
-        val cell = selected.cell
+    private fun nextSelectable(selected: Selectable, predicate: ((Crossword.Word) -> Boolean)? = null): Selectable {
+        val cellIndex = selected.cell
         var word: Crossword.Word? = selected.word
         var nextCell = -1
 
         if (skipOccupiedOnType) {
-            nextCell = firstFreeCell(word, cell + 1)
-            if (nextCell == -1 && cell + 1 < word!!.length) {
+            nextCell = firstCell(word, cellIndex + 1)
+            if (nextCell == -1 && cellIndex + 1 < word!!.length) {
                 // No more free cells from this point, but we're still not
                 // at the end
-                nextCell = cell + 1
+                nextCell = cellIndex + 1
             }
         } else {
-            if (cell + 1 < word!!.length) nextCell = cell + 1
+            if (cellIndex + 1 < word!!.length) nextCell = firstCell(word, cellIndex + 1, isEmpty = false)
         }
 
         if (nextCell == -1) {
-            word = if (skipCompletedWords) nextIncomplete(word) else crossword!!.nextWord(word)
-            nextCell = if (selectFirstUnoccupiedOnNav) maxOf(firstFreeCell(word, 0), 0) else 0
+            word = if (skipCompletedWords) {
+                predicate?.let { nextIncomplete(word, it) } ?: nextIncomplete(word)
+            } else crossword!!.nextWord(word)
+            nextCell = if (selectFirstUnoccupiedOnNav) maxOf(firstCell(word, 0), 0) else 0
         }
 
         return Selectable(word!!, nextCell)
@@ -1015,15 +1073,15 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         } else {
             val cell = puzzleCells[sel.row][sel.column]!!
             when (sel.direction) {
-                Crossword.Word.DIR_ACROSS -> if (cell.downNumber != Cell.WORD_NUMBER_NONE) {
+                Crossword.Word.DIR_ACROSS -> if (cell.downWordNumber != Cell.WORD_NUMBER_NONE) {
                     crossword.findWord(Crossword.Word.DIR_DOWN,
-                            cell.downNumber)?.let { word ->
+                            cell.downWordNumber)?.let { word ->
                         ortho = Selectable(word, sel.startRow - word.startRow)
                     }
                 }
-                Crossword.Word.DIR_DOWN -> if (cell.acrossNumber != Cell.WORD_NUMBER_NONE) {
+                Crossword.Word.DIR_DOWN -> if (cell.acrossWordNumber != Cell.WORD_NUMBER_NONE) {
                     crossword.findWord(Crossword.Word.DIR_ACROSS,
-                            cell.acrossNumber)?.let { word ->
+                            cell.acrossWordNumber)?.let { word ->
                         ortho = Selectable(word, sel.startColumn - word.startColumn)
                     }
                 }
@@ -1183,7 +1241,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             val n = word.length
             while (p < n) {
                 val cell = Cell()
-                cell.acrossNumber = word.number
+                cell.acrossWordNumber = word.number
                 cell.setFlag(Cell.FLAG_CIRCLED, word.cellAt(p).isCircled)
                 puzzleCells[row][column] = cell
                 column++
@@ -1216,7 +1274,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     puzzleCells[row][column] = cell
                 }
 
-                cell.downNumber = word.number
+                cell.downWordNumber = word.number
                 row++
                 p++
             }
@@ -1398,6 +1456,11 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     private fun resetSelection(newSelection: Selectable?,
                                bringIntoView: Boolean = true) {
+
+        newSelection?.let {
+            if (puzzleCells[it.row][it.column]!!.isFlagSet(Cell.FLAG_MARKED)) return
+        }
+
         val selectionChanged = newSelection != selection
 
         val canvas = puzzleCanvas
@@ -1483,7 +1546,11 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
     }
 
-    private fun firstFreeCell(word: Crossword.Word?, start: Int): Int {
+    private fun firstCell(word: Crossword.Word?,
+                          start: Int,
+                          isEmpty: Boolean = true,
+                          isUnsolved: Boolean = true
+    ): Int {
         var firstFree = -1
         if (word != null) {
             var i = start
@@ -1496,7 +1563,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     Crossword.Word.DIR_DOWN -> row += i
                 }
 
-                if (puzzleCells[row][col]?.isEmpty == true) {
+                val cell = puzzleCells[row][col]
+                val isSolved = cell?.isFlagSet(Cell.FLAG_MARKED) == true
+
+                if ((cell?.isEmpty == true || !isEmpty) && (!isSolved || !isUnsolved)) {
                     firstFree = i
                     break
                 }
@@ -1525,8 +1595,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         var sel: Selectable? = null
 
         if (cell != null) {
-            val across = cell.acrossNumber
-            val down = cell.downNumber
+            val across = cell.acrossWordNumber
+            val down = cell.downWordNumber
 
             // Select an Across word if we're currently selecting Across words,
             // or if we're selecting Down words, but no Down words are
@@ -1671,8 +1741,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         var number: String? = null
         var char: String? = null
-        var acrossNumber: Int = WORD_NUMBER_NONE
-        var downNumber: Int = WORD_NUMBER_NONE
+        var acrossWordNumber: Int = WORD_NUMBER_NONE
+        var downWordNumber: Int = WORD_NUMBER_NONE
         var flags: Int = 0
 
         val isEmpty: Boolean
@@ -1683,8 +1753,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         private constructor(parcel: Parcel) {
             number = parcel.readString()
             char = parcel.readString()
-            acrossNumber = parcel.readInt()
-            downNumber = parcel.readInt()
+            acrossWordNumber = parcel.readInt()
+            downWordNumber = parcel.readInt()
             flags = parcel.readInt()
         }
 
@@ -1736,8 +1806,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         override fun writeToParcel(dest: Parcel, parcelFlags: Int) {
             dest.writeString(number)
             dest.writeString(char)
-            dest.writeInt(acrossNumber)
-            dest.writeInt(downNumber)
+            dest.writeInt(acrossWordNumber)
+            dest.writeInt(downWordNumber)
             dest.writeInt(flags)
         }
 

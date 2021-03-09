@@ -23,7 +23,6 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000"
     android:orientation="vertical">
 
     <org.akop.ararat.view.CrosswordView
@@ -31,10 +30,19 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@android:color/white"
         app:answerTextColor="@android:color/white"
-        app:cellStrokeColor="@android:color/white"
+        app:cheatedCellFillColor="@android:color/holo_red_light"
+        app:markedCellFillColor="@android:color/holo_green_light"
+        app:notEmptyCellFillColor="#FFB73F"
+        app:cellStrokeColor="#FFFFFF"
         app:defaultCellFillColor="#FFF3D8"
         app:selectedCellFillColor="#FFB73F"
+        app:selectedCellStrokeColor="@color/colorPrimary"
         app:selectedWordFillColor="#FFB73F" />
+
+    <Button
+        android:id="@+id/button1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
 </LinearLayout>

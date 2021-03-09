@@ -48,7 +48,7 @@ class Crossword internal constructor(val width: Int = 0,
     val wordsDown: List<Word> = ArrayList()
     val alphabet: Set<Char> = HashSet()
 
-    private constructor(source: Parcel): this(
+    private constructor(source: Parcel) : this(
             width = source.readInt(),
             height = source.readInt(),
             squareCount = source.readInt(),
@@ -76,27 +76,35 @@ class Crossword internal constructor(val width: Int = 0,
 
         @set:JvmName("width")
         var width: Int = 0
+
         @set:JvmName("height")
         var height: Int = 0
+
         @set:JvmName("title")
         var title: String? = null
+
         @set:JvmName("description")
         var description: String? = null
+
         @set:JvmName("author")
         var author: String? = null
+
         @set:JvmName("copyright")
         var copyright: String? = null
+
         @set:JvmName("comment")
         var comment: String? = null
+
         @set:JvmName("date")
         var date: Long = 0
+
         @set:JvmName("flags")
         var flags: Int = 0
 
         val alphabet: MutableSet<Char> = HashSet(ALPHABET_ENGLISH)
         val words: MutableList<Word> = ArrayList()
 
-        constructor(crossword: Crossword): this() {
+        constructor(crossword: Crossword) : this() {
             width = crossword.width
             height = crossword.height
             title = crossword.title
@@ -304,6 +312,28 @@ class Crossword internal constructor(val width: Int = 0,
         }
     }
 
+    fun nextWord(word: Word?, predicate: (Word) -> Boolean): Word? {
+        if (word != null) {
+            val index = indexOf(word.direction, word.number)
+            when {
+                index > -1 && word.direction == Word.DIR_ACROSS -> when {
+                    index < wordsAcross.lastIndex -> return wordsAcross[index + 1]
+                    wordsDown.isNotEmpty() -> return wordsDown.firstOrNull(predicate)
+                }
+                index > -1 && word.direction == Word.DIR_DOWN -> when {
+                    index < wordsDown.lastIndex -> return wordsDown[index + 1]
+                    wordsAcross.isNotEmpty() -> return wordsAcross.firstOrNull(predicate)
+                }
+            }
+        }
+
+        return when {
+            wordsAcross.isNotEmpty() -> wordsAcross.first()
+            wordsDown.isNotEmpty() -> wordsDown.first()
+            else -> null
+        }
+    }
+
     fun findWord(direction: Int, number: Int): Word? {
         val index = indexOf(direction, number)
         if (index < 0) return null
@@ -427,7 +457,7 @@ class Crossword internal constructor(val width: Int = 0,
     override fun equals(other: Any?): Boolean = (other as? Crossword)?.hash == hash
 
     class Cell internal constructor(val chars: String = "",
-                                    val attrFlags: Byte = 0): Parcelable {
+                                    val attrFlags: Byte = 0) : Parcelable {
 
         val isEmpty: Boolean
             get() = chars.isEmpty()
@@ -435,7 +465,7 @@ class Crossword internal constructor(val width: Int = 0,
         val isCircled: Boolean
             get() = attrFlags.toInt() and ATTR_CIRCLED == ATTR_CIRCLED
 
-        private constructor(source: Parcel): this(
+        private constructor(source: Parcel) : this(
                 chars = source.readString()!!,
                 attrFlags = source.readByte())
 
@@ -502,16 +532,22 @@ class Crossword internal constructor(val width: Int = 0,
 
             @set:JvmName("number")
             var number: Int = NUMBER_NONE
+
             @set:JvmName("hint")
             var hint: String? = null
+
             @set:JvmName("startRow")
             var startRow: Int = 0
+
             @set:JvmName("startColumn")
             var startColumn: Int = 0
+
             @set:JvmName("direction")
             var direction: Int = 0
+
             @set:JvmName("hintUrl")
             var hintUrl: String? = null
+
             @set:JvmName("citation")
             var citation: String? = null
             val cells = ArrayList<Cell>()
@@ -577,7 +613,7 @@ class Crossword internal constructor(val width: Int = 0,
             }
         }
 
-        private constructor(source: Parcel): this(
+        private constructor(source: Parcel) : this(
                 number = source.readInt(),
                 hint = source.readString(),
                 startRow = source.readInt(),

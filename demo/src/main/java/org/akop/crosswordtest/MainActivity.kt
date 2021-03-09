@@ -20,13 +20,17 @@
 
 package org.akop.crosswordtest
 
+import android.graphics.Color
 import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 
 import org.akop.ararat.core.Crossword
 import org.akop.ararat.core.buildCrossword
@@ -54,52 +58,50 @@ class MainActivity : AppCompatActivity(),
 
         //hint = findViewById(R.id.hint)
 
+        findViewById<Button>(R.id.button1).setOnClickListener {
+            Log.d("TAG", "${crosswordView?.hasMarkedCheated()}")
+        }
+
         val crossword = readPuzzle(R.raw.puzzle)
         val customCrossword = buildCrossword {
-            height = 8
-            width = 10
+            height = 18
+            width = 20
             words.addAll(
                     listOf(
                             buildWord {
                                 direction = Crossword.Word.DIR_ACROSS
                                 number = 1
                                 startRow = 0
-                                startColumn = 0
-                                "dog".toCharArray().forEach { addCell(it) }
+                                startColumn = 4
+                                "aaaaaa".toCharArray().forEach { addCell(it) }
                             },
                             buildWord {
                                 direction = Crossword.Word.DIR_DOWN
                                 number = 2
                                 startRow = 0
-                                startColumn = 2
-                                "glade".toCharArray().forEach { addCell(it) }
+                                startColumn = 6
+                                "allde".toCharArray().forEach { addCell(it) }
                             },
                             buildWord {
                                 direction = Crossword.Word.DIR_ACROSS
                                 number = 3
                                 startRow = 2
-                                startColumn = 2
-                                "age".toCharArray().forEach { addCell(it) }
-                            },
-                            buildWord {
-                                direction = Crossword.Word.DIR_ACROSS
-                                number = 4
-                                startRow = 4
-                                startColumn = 2
-                                "elephant".toCharArray().forEach { addCell(it) }
+                                startColumn = 5
+                                "lllllllllll".toCharArray().forEach { addCell(it) }
                             },
                             buildWord {
                                 direction = Crossword.Word.DIR_DOWN
-                                number = 5
-                                startRow = 1
-                                startColumn = 4
-                                "celery".toCharArray().forEach { addCell(it) }
+                                number = 4
+                                startRow = 0
+                                startColumn = 9
+                                "aallbb".toCharArray().forEach { addCell(it) }
                             }
                     )
             )
         }
 
         crosswordView!!.let { cv ->
+            cv.autoOpenKeyboard = true
             cv.crossword = customCrossword
             cv.onLongPressListener = this
             cv.onStateChangeListener = this
@@ -107,6 +109,18 @@ class MainActivity : AppCompatActivity(),
             cv.inputValidator = { ch -> !ch.first().isISOControl() }
             cv.undoMode = CrosswordView.UNDO_NONE
             cv.markerDisplayMode = CrosswordView.MARKER_CHEAT
+
+            cv.roundedRectEnabled = true
+            cv.roundedRectTop = 4f
+            cv.roundedRectRight = 4f
+            cv.selectedStrokeWidth = 2f
+            cv.strokeWidth = 2f
+            cv.renderNumberEnabled = false
+            cv.cellPadding = 4f
+            cv.backgroundColor = Color.parseColor("#FFFFFF")
+            cv.markedFillFullCellEnabled = true
+            cv.customMarkerForCorrectChecked = true
+            cv.clearFlagsOnEditCell = true
 
             onSelectionChanged(cv, cv.selectedWord, cv.selectedCell)
         }
@@ -145,7 +159,8 @@ class MainActivity : AppCompatActivity(),
                 return true
             }
             R.id.menu_solve_puzzle -> {
-                crosswordView!!.solveCrossword()
+                crosswordView!!.solveCrossword(showAnswers = false)
+                Log.d("TAG", "solved on clicked = ${crosswordView!!.isSolved()}")
                 return true
             }
         }
@@ -159,7 +174,9 @@ class MainActivity : AppCompatActivity(),
                 Toast.LENGTH_SHORT).show()
     }
 
-    override fun onCrosswordChanged(view: CrosswordView) {}
+    override fun onCrosswordChanged(view: CrosswordView) {
+        Log.d("TAG", "all not empty = ${view.isAllCellsNotEmpty()}")
+    }
 
     override fun onCrosswordSolved(view: CrosswordView) {
         Toast.makeText(this, R.string.youve_solved_the_puzzle,
@@ -175,6 +192,7 @@ class MainActivity : AppCompatActivity(),
 
     override fun onSelectionChanged(view: CrosswordView,
                                     word: Crossword.Word?, position: Int) {
+
         /*hint!!.text = when (word?.direction) {
             Crossword.Word.DIR_ACROSS -> getString(R.string.across, word.number, word.hint)
             Crossword.Word.DIR_DOWN -> getString(R.string.down, word.number, word.hint)
