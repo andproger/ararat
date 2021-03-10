@@ -146,6 +146,7 @@ class MainActivity : AppCompatActivity(),
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_restart -> {
+                crosswordView?.isEditable = true
                 crosswordView!!.reset()
                 return true
             }
@@ -179,6 +180,7 @@ class MainActivity : AppCompatActivity(),
     }
 
     override fun onCrosswordSolved(view: CrosswordView) {
+        crosswordView?.isEditable = false
         Toast.makeText(this, R.string.youve_solved_the_puzzle,
                 Toast.LENGTH_SHORT).show()
     }

@@ -586,6 +586,11 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     override fun onKey(v: View, keyCode: Int, event: KeyEvent): Boolean {
         var handled = false
+
+        selection?.let {
+            if (puzzleCells[it.row][it.column]!!.isFlagSet(Cell.FLAG_MARKED)) return true
+        }
+
         if (event.action == KeyEvent.ACTION_UP) {
             when (keyCode) {
                 KeyEvent.KEYCODE_SPACE -> {
@@ -878,7 +883,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     if (puzzleCells[r][w.startColumn]?.isEmpty == true) break@wordLoop
             }
 
-            w = crossword?.nextWord(w)
+            w = predicate?.let { crossword?.nextWord(word, it) }
+                    ?: crossword?.nextWord(word)
             if (w == firstNext) break
         }
 
@@ -953,8 +959,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             selectedWord?.also { word ->
                 if (isWordSolved(word)) {
                     solveWord(word)
-                    (if (skipCompletedWords) nextIncomplete(word) { !isWordSolved(it) } else crossword!!.nextWord(word))?.let { nextWord ->
-                        nextSelectable = Selectable(nextWord, if (selectFirstUnoccupiedOnNav) maxOf(firstCell(nextWord, 0), 0) else 0)
+                    (nextIncomplete(word) { !isWordSolved(it) })?.let { nextWord ->
+                        nextSelectable = Selectable(nextWord, if (selectFirstUnoccupiedOnNav) maxOf(freeOrUnsolvedCell(nextWord), 0) else 0)
                     }
                 } else {
                     when (selection!!.direction) {
@@ -999,13 +1005,15 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         if (nextCell == -1) {
-            word = if (skipCompletedWords) {
-                predicate?.let { nextIncomplete(word, it) } ?: nextIncomplete(word)
-            } else crossword!!.nextWord(word)
-            nextCell = if (selectFirstUnoccupiedOnNav) maxOf(firstCell(word, 0), 0) else 0
+            word = predicate?.let { nextIncomplete(word, it) } ?: nextIncomplete(word)
+            nextCell = if (selectFirstUnoccupiedOnNav) maxOf(freeOrUnsolvedCell(word), 0) else 0
         }
 
         return Selectable(word!!, nextCell)
+    }
+
+    fun freeOrUnsolvedCell(word: Crossword.Word?): Int {
+        return firstCell(word, 0).let { if (it < 0) firstCell(word, 0, isEmpty = false) else it }
     }
 
     private fun handleBackspace() {

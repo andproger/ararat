@@ -314,22 +314,26 @@ class Crossword internal constructor(val width: Int = 0,
 
     fun nextWord(word: Word?, predicate: (Word) -> Boolean): Word? {
         if (word != null) {
-            val index = indexOf(word.direction, word.number)
+            val wordIndex = indexOf(word.direction, word.number)
+
+            fun firstDown() = wordsDown.firstOrNull { predicate(it) && it != word }
+            fun firstAcross() = wordsAcross.firstOrNull { predicate(it) && it != word }
+
             when {
-                index > -1 && word.direction == Word.DIR_ACROSS -> when {
-                    index < wordsAcross.lastIndex -> return wordsAcross[index + 1]
-                    wordsDown.isNotEmpty() -> return wordsDown.firstOrNull(predicate)
+                wordIndex > -1 && word.direction == Word.DIR_ACROSS -> when {
+                    wordIndex < wordsAcross.lastIndex -> return firstAcross() ?: firstDown()
+                    wordsDown.isNotEmpty() -> return firstDown() ?: firstAcross()
                 }
-                index > -1 && word.direction == Word.DIR_DOWN -> when {
-                    index < wordsDown.lastIndex -> return wordsDown[index + 1]
-                    wordsAcross.isNotEmpty() -> return wordsAcross.firstOrNull(predicate)
+                wordIndex > -1 && word.direction == Word.DIR_DOWN -> when {
+                    wordIndex < wordsDown.lastIndex -> return firstDown() ?: firstAcross()
+                    wordsAcross.isNotEmpty() -> return firstAcross() ?: firstDown()
                 }
             }
         }
 
         return when {
-            wordsAcross.isNotEmpty() -> wordsAcross.first()
-            wordsDown.isNotEmpty() -> wordsDown.first()
+            wordsAcross.isNotEmpty() -> wordsAcross.firstOrNull { predicate(it) && it != word }
+            wordsDown.isNotEmpty() -> wordsDown.firstOrNull { predicate(it) && it != word }
             else -> null
         }
     }
