@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity(),
         }
 
         val crossword = readPuzzle(R.raw.puzzle)
+
         val customCrossword = buildCrossword {
             height = 18
             width = 20

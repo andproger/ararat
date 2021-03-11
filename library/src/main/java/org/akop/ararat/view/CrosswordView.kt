@@ -877,8 +877,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     // If all words have been completed, returns next word - irrelevant of
     // completion status.
     private fun nextIncomplete(word: Crossword.Word?, predicate: ((Crossword.Word) -> Boolean)? = null): Crossword.Word? {
-        val firstNext = predicate?.let { crossword?.nextWord(word, it) }
-                ?: crossword?.nextWord(word)
+        val firstNext = if (predicate != null) {
+            crossword?.nextWord(word, predicate)
+        } else crossword?.nextWord(word)
 
         var w = firstNext
 
@@ -1014,7 +1015,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         if (nextCell == -1) {
-            word = predicate?.let { nextIncomplete(word, it) } ?: nextIncomplete(word)
+            val newWord = if (predicate != null) nextIncomplete(word, predicate) else nextIncomplete(word)
+            newWord?.let { word = it }
             nextCell = if (selectFirstUnoccupiedOnNav) maxOf(freeOrUnsolvedCell(word), 0) else 0
         }
 
