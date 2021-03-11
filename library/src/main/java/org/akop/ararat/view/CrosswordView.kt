@@ -245,6 +245,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     var customMarkerForCorrectChecked = false
     var clearFlagsOnEditCell = false
     var autoOpenKeyboard = false
+    var zoomAndScrollEnabled = true
 
     var strokeWidth: Float? = null
         set(value) {
@@ -344,9 +345,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         set(value) {
             field = value
 
+            if (autoOpenKeyboard) showKeyboard()
+
             initializeCrossword()
             selectNextWord()
-            if (autoOpenKeyboard) showKeyboard()
 
             renderScale = 0f
             resetConstraintsAndRedraw(true)
@@ -564,6 +566,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     override fun computeScroll() {
         super.computeScroll()
+
+        if (!zoomAndScrollEnabled) return
 
         var invalidate = false
 
@@ -1194,6 +1198,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     }
 
     private fun zoomTo(finalRenderScale: Float): Boolean {
+        if (!zoomAndScrollEnabled) return false
+
         if ((finalRenderScale - renderScale).absoluteValue < .01f) return false
 
         zoomer.forceFinished(true)
@@ -1458,6 +1464,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         val distanceY = end.y - bitmapOffset.y
 
         // Scroll the point into view
+        if (!zoomAndScrollEnabled) return
+
         scroller.startScroll(bitmapOffset.x.toInt(), bitmapOffset.y.toInt(),
                 distanceX.toInt(), distanceY.toInt(), NAVIGATION_SCROLL_DURATION_MS)
     }
@@ -2120,6 +2128,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
 
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+            if (!zoomAndScrollEnabled) return true
+
             if (isZooming) {
                 // Double-tap scaling interferes with autozoom, so ignore
                 // zoom requests
@@ -2135,6 +2145,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         override fun onScale(detector: ScaleGestureDetector): Boolean {
+            if (!zoomAndScrollEnabled) return true
+
             if (ignoreZoom) return true
 
             renderScale *= detector.scaleFactor
@@ -2149,6 +2161,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         override fun onScaleEnd(detector: ScaleGestureDetector) {
+            if (!zoomAndScrollEnabled) return
+
             if (!ignoreZoom) regenerateBitmaps()
             ignoreZoom = false
         }
@@ -2159,6 +2173,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         private val tapLocation = CellOffset()
 
         override fun onDown(e: MotionEvent): Boolean {
+            if (!zoomAndScrollEnabled) return true
+
             if (!scroller.isFinished) scroller.forceFinished(true)
             return true
         }
@@ -2188,12 +2204,15 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
+            if (!zoomAndScrollEnabled) return true
             zoomTo(fitWidthScaleFactor)
             return true
         }
 
         override fun onScroll(e1: MotionEvent, e2: MotionEvent,
                               distX: Float, distY: Float): Boolean {
+            if (!zoomAndScrollEnabled) return true
+
             bitmapOffset.offset(-distX, -distY)
 
             constrainTranslation()
@@ -2204,6 +2223,9 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         override fun onFling(e1: MotionEvent, e2: MotionEvent,
                              velocityX: Float, velocityY: Float): Boolean {
+
+            if (!zoomAndScrollEnabled) return true
+
             // Horizontal
             val startX = bitmapOffset.x.toInt()
             var minX = startX

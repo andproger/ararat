@@ -128,6 +128,7 @@ class MainActivity : AppCompatActivity(),
             cv.markedFillFullCellEnabled = true
             cv.customMarkerForCorrectChecked = true
             cv.clearFlagsOnEditCell = true
+            cv.zoomAndScrollEnabled = false
 
             onSelectionChanged(cv, cv.selectedWord, cv.selectedCell)
         }
