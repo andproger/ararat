@@ -61,7 +61,12 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     interface OnStateChangeListener {
         fun onCrosswordChanged(view: CrosswordView)
         fun onCrosswordSolved(view: CrosswordView)
+        fun onCrosswordWordSolved(view: CrosswordView)
         fun onCrosswordUnsolved(view: CrosswordView)
+    }
+
+    interface OnKeyPressedListener {
+        fun onPressed()
     }
 
     interface OnSelectionChangeListener {
@@ -227,6 +232,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     var onSelectionChangeListener: OnSelectionChangeListener? = null
     var onStateChangeListener: OnStateChangeListener? = null
     var onLongPressListener: OnLongPressListener? = null
+    var onKeyPressedListener: OnKeyPressedListener? = null
     var inputValidator: InputValidator? = null
 
     var backgroundColor: Int? = null
@@ -636,6 +642,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         }
 
         setChars(word.startRow, word.startColumn, matrix, true)
+        onStateChangeListener?.onCrosswordWordSolved(this)
     }
 
     fun isSquareMarked(word: Crossword.Word, square: Int): Boolean {
@@ -931,6 +938,8 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
     private fun handleInput(ch: Char) {
         if (!_isEditable) return
+
+        onKeyPressedListener?.onPressed()
 
         val sch = ch.toString()
         val validator = inputValidator ?: defaultInputValidator

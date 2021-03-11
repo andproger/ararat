@@ -21,6 +21,7 @@
 package org.akop.crosswordtest
 
 import android.graphics.Color
+import android.media.MediaPlayer
 import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -106,6 +107,11 @@ class MainActivity : AppCompatActivity(),
             cv.onLongPressListener = this
             cv.onStateChangeListener = this
             cv.onSelectionChangeListener = this
+            cv.onKeyPressedListener = object : CrosswordView.OnKeyPressedListener {
+                override fun onPressed() {
+                    playSound(R.raw.tick)
+                }
+            }
             cv.inputValidator = { ch -> !ch.first().isISOControl() }
             cv.undoMode = CrosswordView.UNDO_NONE
             cv.markerDisplayMode = CrosswordView.MARKER_CHEAT
@@ -183,6 +189,14 @@ class MainActivity : AppCompatActivity(),
         crosswordView?.isEditable = false
         Toast.makeText(this, R.string.youve_solved_the_puzzle,
                 Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onCrosswordWordSolved(view: CrosswordView) {
+        playSound(R.raw.pilim)
+    }
+
+    private fun playSound(resId: Int) {
+        MediaPlayer.create(this, resId).start()
     }
 
     override fun onCrosswordUnsolved(view: CrosswordView) {}
