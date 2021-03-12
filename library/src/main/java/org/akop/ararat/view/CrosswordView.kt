@@ -552,6 +552,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             outAttrs.imeOptions = outAttrs.imeOptions or EditorInfo.IME_FLAG_NO_EXTRACT_UI
             outAttrs.imeOptions = outAttrs.imeOptions and EditorInfo.IME_MASK_ACTION.inv()
             outAttrs.imeOptions = outAttrs.imeOptions or EditorInfo.IME_ACTION_NEXT
+            outAttrs.imeOptions = outAttrs.imeOptions or EditorInfo.IME_FLAG_FORCE_ASCII
             outAttrs.packageName = context.packageName
 
             inputConnection = CrosswordInputConnection(this)
@@ -595,7 +596,7 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
     }
 
     override fun onKey(v: View, keyCode: Int, event: KeyEvent): Boolean {
-        var handled = false
+        /*var handled = false
 
         selection?.let {
             if (puzzleCells[it.row][it.column]!!.isFlagSet(Cell.FLAG_MARKED)) return true
@@ -615,6 +616,42 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                     val uniChar = event.unicodeChar
                     if (uniChar != 0) {
                         handleInput(uniChar.toChar())
+                        handled = true
+                    }
+                }
+            }
+        } else if (event.action == KeyEvent.ACTION_MULTIPLE) {
+            val uniChars = event.characters
+            if (!uniChars.isNullOrEmpty()) {
+                handleInput(uniChars[0])
+                handled = true
+            }
+        }*/
+
+        return onKey(keyCode, event, null)
+    }
+
+    fun onKey(keyCode: Int?, event: KeyEvent?, char: Char?): Boolean {
+        var handled = false
+
+        selection?.let {
+            if (puzzleCells[it.row][it.column]!!.isFlagSet(Cell.FLAG_MARKED)) return true
+        }
+
+        if (event?.action == KeyEvent.ACTION_UP || event == null) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_SPACE -> {
+                    switchWordDirection()
+                    handled = true
+                }
+                KeyEvent.KEYCODE_DEL -> {
+                    handleBackspace()
+                    handled = true
+                }
+                else -> {
+                    val uniChar = event?.unicodeChar ?: keyCode
+                    if (uniChar != 0) {
+                        handleInput(uniChar?.toChar() ?: char!!)
                         handled = true
                     }
                 }
@@ -1037,18 +1074,13 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
 
         if (!_isEditable) return
 
-        // If the undo buffer contains items, perform an undo action
-        if (!undoBuffer.isEmpty()) {
-            val item = undoBuffer.pop()
-            setChars(item.startRow, item.startCol, item.chars,
-                    setCheatFlag = false, bypassUndoBuffer = true)
-            item.selectable?.let {
-                val word = crossword.findWord(it.direction, it.word.number)!!
-                resetSelection(Selectable(word, it.cell))
-            }
-
-            return
+        fun isEditable(selectable: Selectable?): Boolean {
+            return selectable?.let { sel ->
+                !puzzleCells[sel.row][sel.column]!!.isFlagSet(Cell.FLAG_MARKED)
+            } ?: false
         }
+
+        if (!isEditable(sel)) return
 
         // Otherwise, act as a simple backspace
         var selectedWord: Crossword.Word? = sel.word
@@ -1057,29 +1089,22 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
         val s = Selectable(sel)
 
         if (puzzleCells[s.row][s.column]?.isEmpty == true) {
-            if (selectedCell > 0) {
-                // Go back one cell and remove the char
-                s.cell = --selectedCell
-            } else {
-                // At the first letter of a word. Select the previous word and do
-                // what we did if (mSelectedCell > 0)
-                selectedWord = crossword.previousWord(selectedWord)
-                selectedCell = selectedWord!!.length - 1
+            do {
+                if (selectedCell > 0) {
+                    s.cell = --selectedCell
+                } else {
+                    selectedWord = crossword.previousWord(selectedWord)
+                    selectedCell = selectedWord!!.length - 1
 
-                s.word = selectedWord
-                s.cell = selectedCell
-            }
+                    s.word = selectedWord
+                    s.cell = selectedCell
+                }
+            } while (!isEditable(s))
         }
 
-        val row = s.row
-        val col = s.column
-
-        val changed = puzzleCells[row][col]!!.clearChar()
-        if (markerDisplayMode and MARKER_ERROR != 0) {
-            puzzleCells[row][col]!!.setFlag(Cell.FLAG_ERROR, false)
-        }
+        val changed = puzzleCells[s.row][s.column]!!.clearChar()
         if (clearFlagsOnEditCell) {
-            puzzleCells[row][col]!!.flags = 0
+            puzzleCells[s.row][s.column]!!.flags = 0
         }
 
         selectedWord?.let { resetSelection(Selectable(it, selectedCell)) }
@@ -1167,14 +1192,14 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
                             if (showAnswers) vwCell.setChar(ch)
                             cwChanged = true
                         }
-                        if (setCheatFlag) {
+                        if (setCheatFlag && !bypassUndoBuffer) {
                             vwCell.setFlag(Cell.FLAG_CHEATED, true)
                         }
                         if (markerDisplayMode and MARKER_ERROR != 0) {
                             vwCell.markError(map[i][j]!!, revealSetsCheatFlag)
                         }
                     } else {
-                        if (customMarkerForCorrectChecked) {
+                        if (customMarkerForCorrectChecked && !bypassUndoBuffer) {
                             vwCell.setFlag(Cell.FLAG_MARKED, true)
                         }
                     }

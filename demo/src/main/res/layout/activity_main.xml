@@ -31,18 +31,19 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         app:answerTextColor="@android:color/white"
+        app:cellStrokeColor="#FFFFFF"
         app:cheatedCellFillColor="@android:color/holo_red_light"
+        app:defaultCellFillColor="#FFF3D8"
         app:markedCellFillColor="@android:color/holo_green_light"
         app:notEmptyCellFillColor="#FFB73F"
-        app:cellStrokeColor="#FFFFFF"
-        app:defaultCellFillColor="#FFF3D8"
         app:selectedCellFillColor="#FFB73F"
         app:selectedCellStrokeColor="@color/colorPrimary"
         app:selectedWordFillColor="#FFB73F" />
 
-    <Button
-        android:id="@+id/button1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
+    <org.akop.crosswordtest.CustomKeyboard
+        android:id="@+id/keyboardLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"/>
 
 </LinearLayout>

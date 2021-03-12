@@ -26,12 +26,12 @@ import androidx.annotation.RawRes
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Button
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 
 import org.akop.ararat.core.Crossword
 import org.akop.ararat.core.buildCrossword
@@ -55,13 +55,11 @@ class MainActivity : AppCompatActivity(),
 
         setContentView(R.layout.activity_main)
 
+        findViewById<CustomKeyboard>(R.id.keyboardLayout).create(::onKeyClicked)
+
         crosswordView = findViewById(R.id.crossword)
 
         //hint = findViewById(R.id.hint)
-
-        findViewById<Button>(R.id.button1).setOnClickListener {
-            Log.d("TAG", "${crosswordView?.hasMarkedCheated()}")
-        }
 
         val crossword = readPuzzle(R.raw.puzzle)
 
@@ -103,7 +101,7 @@ class MainActivity : AppCompatActivity(),
         }
 
         crosswordView!!.let { cv ->
-            cv.autoOpenKeyboard = true
+            cv.inputMode = CrosswordView.INPUT_MODE_NONE
             cv.crossword = customCrossword
             cv.onLongPressListener = this
             cv.onStateChangeListener = this
@@ -128,9 +126,15 @@ class MainActivity : AppCompatActivity(),
             cv.markedFillFullCellEnabled = true
             cv.customMarkerForCorrectChecked = true
             cv.clearFlagsOnEditCell = true
-            cv.zoomAndScrollEnabled = false
 
             onSelectionChanged(cv, cv.selectedWord, cv.selectedCell)
+        }
+    }
+
+    private fun onKeyClicked(key: Char) {
+        when (key) {
+            '<' -> crosswordView?.onKey(KeyEvent.KEYCODE_DEL, null, null)
+            else -> crosswordView?.onKey(null, null, key)
         }
     }
 
@@ -189,6 +193,7 @@ class MainActivity : AppCompatActivity(),
 
     override fun onCrosswordSolved(view: CrosswordView) {
         crosswordView?.isEditable = false
+        findViewById<View>(R.id.keyboardLayout).visibility = View.GONE
         Toast.makeText(this, R.string.youve_solved_the_puzzle,
                 Toast.LENGTH_SHORT).show()
     }
