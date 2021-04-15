@@ -1211,6 +1211,10 @@ class CrosswordView(context: Context, attrs: AttributeSet?) : View(context, attr
             k++
         }
 
+        if (!showAnswers) {
+            resetSelection(nextSelectable(selection!!) { !isWordSolved(it) })
+        }
+
         // Redraw selection
         redrawInPlace()
         if (cwChanged) {
